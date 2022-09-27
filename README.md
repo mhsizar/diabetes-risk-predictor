@@ -5,4 +5,4 @@ Can Body Mass Index (Underweight/Overweight) be used to predict the risk of gett
 
 
 
-Download Higher Resolution Here: [Final_Poster.pptx.pdf](https://github.com/mhsizar/diabetes-predictor-using-bmi/files/9658776/Final_Poster.pptx.pdf)
+Download Higher Resolution Here: [Final_Poster.pdf](https://github.com/mhsizar/diabetes-predictor-using-bmi/files/9658776/Final_Poster.pptx.pdf)
