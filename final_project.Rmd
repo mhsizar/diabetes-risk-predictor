@@ -1,0 +1,502 @@
+---
+title: "Project2"
+author: "Sizar"
+date: "4/12/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+require(dplyr)
+require(knitr)
+require(mosaicData)
+require(ggplot2)
+require(mosaicData)
+require(tidyr)
+```
+```{r}
+load("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/ICPSR_21600/DS0034/21600-0034-Data.rda")
+load("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/ICPSR_21600/DS0035/21600-0035-Data.rda")
+load("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/ICPSR_21600/DS0036/21600-0036-Data.rda")
+load("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/ICPSR_21600/DS0037/21600-0037-Data.rda")
+```
+
+```{r}
+V_Anthro<-da21600.0034%>%
+  select(AID, H5HGT:H5BMI, H5HGTINS:H5BMICLS)
+
+V_Cardio<-da21600.0035%>%
+  select(AID, H5Q015, H5SBP:H5PP, H5Q045A:H5HTENJC)
+
+V_Demog<-da21600.0036%>%
+  select(AID:H5EXYEAR, H5AGE, H5Q011)
+
+V_Glucose<-da21600.0037%>%
+  select(AID, H5DIABJC)
+```
+
+```{r}
+AddHealthV<-V_Anthro%>%
+  inner_join(V_Cardio, by="AID")%>%
+  inner_join(V_Demog, by="AID")%>%
+  inner_join(V_Glucose, by="AID")
+```
+
+```{r}
+AddHealthV <- AddHealthV %>%
+  select(AID,H5EXMON,H5EXYEAR,H5AGE:H5Q011,H5HGT,H5WGT,H5BMI,H5BMICLS,H5Q015,H5Q045B,H5DIABJC,H5SBP,H5DBP,H5BPCLS4,H5BPCLS5,H5PR,H5PR,H5PP,H5Q045A:H5Q045F,H5AHT,H5HTENJC,everything())
+```
+
+```{r}
+project2<-AddHealthV%>%
+  select(AID,H5AGE,H5Q011,H5HGT,H5WGT,H5BMI,H5BMICLS,H5DIABJC,H5SBP,H5DBP,H5HTENJC,H5Q015)%>%
+  filter(H5BMI<=50,H5SBP<=200,H5DBP<150)%>%
+  rename(age=H5AGE,gender=H5Q011,height=H5HGT,weight=H5WGT,bmi=H5BMI,bmi_class=H5BMICLS,diabetes_class=H5DIABJC,systolicBP=H5SBP,diastolicBP=H5DBP,hypertension_class=H5HTENJC,smoking_status=H5Q015)
+head(project2)
+```
+
+
+# **Data Visualization:**
+
+
+*#BMI vs Systolic BP:*
+
+
+```{r}
+bmibp<-project2%>%
+  mutate(bmi_class=as.factor(bmi_class))
+
+BMI_BP<-ggplot(bmibp, aes(x=bmi_class,y=systolicBP))+
+  geom_boxplot()+ labs(x="BMI Classification 
+(1=Underweight, 2=Normal Weight, 3=Overweight, 4=Obesity I, 5=Obesity II, 6=Obesity III)", y="Systolic Blood Pressure (MMHg)", title = "Effect of BMI on Systolic Blood Pressue", caption = "Data source: AddHealth")
+BMI_BP
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/BMI_BP.svg")
+
+# Code of the plot
+plot(BMI_BP)
+
+# Close the graphics device
+dev.off() 
+```
+
+*#BMI & Diabetes:*
+
+
+```{r}
+db<-project2%>%
+  filter(diabetes_class==1)
+
+BMI_DB<-ggplot(db, aes(x=bmi_class))+
+  geom_bar()+ labs(x="BMI Classification 
+(1=Underweight, 2=Normal Weight, 3=Overweight, 4=Obesity I, 5=Obesity II, 6=Obesity III)", y="Number of patients diagnosed with Diabetes", title = "Effect of BMI on Diabetes",
+              caption = "Data source: AddHealth")
+
+BMI_DB
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/BMI_DB.svg")
+
+# Code of the plot
+plot(BMI_DB)
+
+# Close the graphics device
+dev.off() 
+```
+
+
+*#BMI & Diabetes:*
+
+```{r}
+df<-data.frame(BMI=c("Underweight","Normal","Overweight"), Diabetes=c(0,13,25), No_Diabetes=c(14,397,489))
+bmiDiabetes_tbl<-gather(df, key = "Diabetes_status", value = "Count", 2:3)
+
+BMI_DB2<-ggplot(bmiDiabetes_tbl, aes(x=BMI,y=Count,fill=Diabetes_status))+
+  geom_bar(stat = "identity",position = "dodge")+ labs(x="BMI Class", y="Number of Patients", title = "Effect of BMI on getting Diabetes",
+              caption = "Data source: AddHealth")
+
+BMI_DB2
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/BMI_DB2.svg")
+
+# Code of the plot
+plot(BMI_DB2)
+
+# Close the graphics device
+dev.off() 
+```
+
+
+*#Hypertension & Overweight:*
+
+```{r}
+dbpModel<-project2%>%
+  mutate(overweight=(bmi_class>=3))%>%
+  mutate(underweight=(bmi_class<2))%>%
+  mutate(overweight=factor(overweight,labels=c("No","Yes")))%>%
+  mutate(underweight=factor(underweight,labels=c("No","Yes")))%>%
+  mutate(smoking_status=factor(smoking_status,labels=c("Doesn't Smoke","Smokes")))%>%
+  mutate(diabetes_class=factor(diabetes_class,labels=c("No Diabetes","Has Diabetes")))%>%
+  mutate(gender=factor(gender,labels=c("Male","Female")))%>%
+  mutate(hypertension_class=factor(hypertension_class,labels=c("No Hypertension","Has Hypertension")))
+
+HyperBMI<-ggplot(dbpModel, aes(x=overweight, fill=hypertension_class))+
+  geom_bar(position = "fill")+ labs(x="Overweight?", title = "Effect of Higher BMI (Overweight) on Hypertension",
+              caption = "Data source: AddHealth")
+
+HyperBMI
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/HyperBMI.svg")
+
+# Code of the plot
+plot(HyperBMI)
+
+# Close the graphics device
+dev.off() 
+```  
+
+
+
+#### *#Systolic BP, BMI & Smoking Status:*
+
+```{r}
+dbpModel2<-dbpModel%>%
+  mutate(bmi_class=as.factor(bmi_class))
+SysBMISmo<-ggplot(dbpModel2, aes(x=bmi_class, y=systolicBP, color=smoking_status))+
+  geom_boxplot()+ labs(x="BMI Classification 
+(1=Underweight, 2=Normal Weight, 3=Overweight, 4=Obesity I, 5=Obesity II, 6=Obesity III)",y="Systolic Blood Pressure (MMHg)", title = "Association between Systolic Blood Pressure, BMI Class, and Smoking",
+              caption = "Data source: AddHealth")
+
+SysBMISmo
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/SysBMISmo.svg")
+
+# Code of the plot
+plot(SysBMISmo)
+
+# Close the graphics device
+dev.off()
+```
+
+# **Test Results**
+
+
+## **ANOVA**
+
+#### *#Loading Dataset to perform ANOVA*
+
+```{r}
+anova<-project2%>%
+  select(bmi_class,systolicBP)
+anova$bmi_class <- as.factor(anova$bmi_class)
+```
+  
+
+### **Question:** Does BMI (Underweight/Normal weight/Overweight) has any effect on Systolic Blood pressure?
+
+Null Hypothesis, H~0~ : The mean systolic blood pressure (MMHg) is the same in each type of BMI (1=Underweight, 2=Normal weight, 3=overweight).
+
+Alternative Hypothesis, H~A~ : At least people with one category of BMI has not the same mean systolic blood pressure (MMHg) as the others.
+  
+
+#### *#ANOVA Test*
+```{r}
+bp<- aov(systolicBP~bmi_class,data = anova)
+summary(bp)
+```
+  
+
+The Analysis of Variance (ANOVA) in the mean systolic blood pressure between different BMI categories suggests that there is a significant effect of BMI on average systolic blood pressure, F(5,1706)=59.86, p<0.001
+
+  
+
+#### *#Post-hoc ANOVA Test*
+```{r}
+TukeyHSD(bp)
+```
+  
+
+#### **Conclusion:** 
+
+There is a significant difference in mean Systolic Blood Pressure between normal weight and overweight people (p<0.001), and on average overweight people have 6.73 MMHg higher blood pressure than people who have normal weight. However, the difference in the mean systolic blood pressure is not statistically significant between the overweight and underweight people (p=0.495) or underweight and normal weight people (p=0.999).
+
+
+
+## **Logistic Regression**
+
+#Change Factor Label:
+
+
+```{r}
+dbpModel<-project2%>%
+  mutate(overweight=(bmi_class>=3))%>%
+  mutate(underweight=(bmi_class<2))%>%
+  mutate(overweight=factor(overweight,labels=c("No","Yes")))%>%
+  mutate(underweight=factor(underweight,labels=c("No","Yes")))%>%
+  mutate(smoking_status=factor(smoking_status,labels=c("Doesn't Smoke","Smokes")))%>%
+  mutate(diabetes_class=factor(diabetes_class,labels=c("No Diabetes","Has Diabetes")))%>%
+  mutate(gender=factor(gender,labels=c("Male","Female")))%>%
+  mutate(hypertension_class=factor(hypertension_class,labels=c("No Hypertension","Has Hypertension")))
+head(dbpModel)
+```
+
+
+### *#Question & Hypotheses*
+
+### Can we predict the risk of being diagnosed with hypertensions of patiens by looking at their other health conditions (Age/Weight/Gender/Diseases/Smoking)?
+
+Null Hypothesis, H~0~ : There is no significant relationship between the risk of hypertension (response variable) and other health conditions (predictor variables).
+
+Alternative Hypothesis, H~A~ : There is a statistically significant relationship between the risk of hypertension (response variable) and other health conditions (predictor variables).
+
+### *#Performing Logistic Regression*
+
+#Hypertension & Overweight:
+
+```{r}
+fit<-glm(hypertension_class~overweight, data = dbpModel, family = "binomial")
+summary(fit)
+```
+
+
+```{r}
+fit$coefficients
+```
+
+Counting the probability of having hypertension if a patient doesn't have overweight:
+
+```{r}
+1/(1+exp(-fit$coefficients[1]))
+```
+Counting the probability of having hypertension if a patient has overweight:
+
+```{r}
+1/(1+exp(-fit$coefficients[1]-fit$coefficients[2]*1))
+```
+Hence, the model tells that, the probability of a patient being diagnosed with hypertension if the patient doesn't have overweight is 0.127, and the probability of a patient being diagnosed with hypertension if the patient has overweight is 0.359. Which means, to filter out the patients with hypertension only looking at the overweight status is not sufficient (36% of the time), and we need to find a better model involving more variables.
+
+#Adding more predictor variables:
+
+```{r}
+fit<-glm(hypertension_class~overweight+underweight+smoking_status+diabetes_class+gender, data = dbpModel, family = "binomial")
+summary(fit)
+```
+Removing underweight from the model, since it has the highest p-value:
+
+```{r}
+fit<-glm(hypertension_class~overweight+smoking_status+diabetes_class+gender, data = dbpModel, family = "binomial")
+summary(fit)
+```
+Here, all the variables that are left have coefficients that are significantly different from 0 at the α = 0.01 significance level.
+
+### **Conclusion:** 
+
+The resulting model:
+
+$logit(p)=e^{-1.646+1.232*overweight_{yes}+0.394*smoking\_status_{smokes}+1.299*diabetes\_class_{has diabetes}-0.702*gender_{female}}$
+
+The odds ratios are: 
+
+```{r}
+exp(fit$coefficients)
+```
+
+These odds ratios tell us that the patients are most likely to be diagnosed with hypertension are those who have overweights, have been smoking, have been diagnosed with Diabetes previously, and who are not female in gender. 
+
+#Calculating the efficiency of the model to interpret whether a patient is at risk of being diagnosed with hypertension:
+
+```{r}
+1/(1+exp(-(-1.646+1.232+0.394+1.299)))
+```
+Therefore, this model is more efficient as we can detect 78% of the patients who are at risk of getting hypertension diseases by looking at their weight, smoking status, diabetes class, and gender.
+
+## **Linear Regression**
+
+#### *#Loading Dataset to perform Linear Regression*
+
+```{r}
+bp_sample<-project2[sample.int(n=length(project2$systolicBP), size = 50, replace = FALSE),]
+head(bp_sample)
+```
+
+### **Question:** Does Systolic Blood Pressure have any effect on Diastolic Blood Pressure?
+
+Null Hypothesis, H~0~ : There is no relationship between systolic and diastolic blood pressure (Correlation Coefficient, r=0).
+
+Alternative Hypothesis, H~A~ : There is a relationship between systolic and diastolic blood pressure (r≠0).
+  
+
+#### *#Finding the coefficient correlation, r:*
+
+```{r}
+cor(bp_sample$systolicBP,bp_sample$diastolicBP)
+```
+The correlation coefficient, r = 0.831. Hence, there is a relatively strong positive relationship between the systolic blood pressure and diastolic blood pressure.
+
+#### *#Performing Linear Regression*
+
+```{r}
+bp_fit<-lm(diastolicBP~systolicBP, data = bp_sample)
+summary(bp_fit)
+```
+*#Data Visualization:*
+
+```{r}
+SysDia<-ggplot(bp_fit$model, aes_string(x=names(bp_fit$model)[2],y=names(bp_fit$model)[1]))+
+  geom_point()+ stat_smooth(method = "lm", col = "red")+ labs(x="Systolic Blood Pressure (MMHg)",y="Diastolic Blood Pressure (MMHg)", title = "Association between Systolic & Diastolic Blood Pressure",
+              caption = "Data source: AddHealth")
+
+SysDia
+svg("C:/Users/Mehedi Hasan Sizar/Desktop/Bennington College/Academics/Classes/Statistical Analysis/Project 2/Final/Plots/SysDia1.svg")
+
+# Code of the plot
+plot(SysDia)
+
+# Close the graphics device
+dev.off() 
+```
+
+#### **Conclusion:** 
+
+
+When examining the association between the Systolic Blood Pressure (MMHg) and Diastolic Blood Pressure (MMHg), the least squares linear regression line revealed that there is a positive and significantly strong relationship between them (t=10.366, p<0.001), as every 1 MMHg increase in the Systolic Blood Pressure results in a 0.61 MMHg increase in the Diastolic Blood Pressure (Diastolic Blood Pressure = 4.74+0.61*Systolic Blood Pressure).
+
+
+## **Chi-square test**
+
+#### *#Loading Dataset to perform Chi-square test*
+
+```{r}
+chisq<-project2%>%
+  mutate(bmi_class = case_when(bmi_class == 1 ~ 'underweight',
+                           bmi_class == 2 ~ 'normal weight',
+                           bmi_class >= 3 ~ 'overweight'))%>%
+  select(bmi_class,hypertension_class)
+chisq$bmi_class <- as.factor(chisq$bmi_class)
+chisq$hypertension_class <- as.factor(chisq$hypertension_class)
+head(chisq)
+```
+#### *#Forming a two-way table*
+
+```{r}
+bmiDiabetes <- chisq %>%
+  group_by(bmi_class,hypertension_class)%>%
+  summarise(n=n())%>%
+spread(hypertension_class,n)
+bmiDiabetes[is.na(bmiDiabetes)]=0
+bmiDiabetes
+```
+
+
+### **Question:** Does BMI (Underweight/Overweight) has any effect on having Diabetes?
+
+Null Hypothesis, H~0~ : There is no relationship between BMI (Overweight or not overweight) and whether or not ever has diagnosed with diabetes (diabetes_class: 0=No diabetes, 1=Has diabetes).
+
+Alternative Hypothesis, H~A~ : There is a relationship between BMI categories and whether or not has ever diagnosed with diabetes.
+  
+#### *#Forming Data Table*
+
+```{r}
+df<-data.frame(BMI=c("Normal Weight", "Overweight", "Underweight"), Diabetes=c(13,130,0), No_Diabetes=c(397,1158,14))
+bmiDiabetes_tbl<-gather(df, key = "Diabetes_status", value = "Count", 2:3)
+bmiDiabetes_tbl
+```
+
+
+#### *#Chi-square test of Independence*
+```{r}
+chisq.test(bmiDiabetes$`1`,bmiDiabetes$overweight, correct = F)
+```
+
+#### **Conclusion:** 
+
+
+When examining the association between the Diabetes status (whether or not has diagnosed with diabetes) and Body Mass Index (BMI) class (underweight, normal weight, and overweight), a chi-square test of independence revealed that there is a significant evidence of a strong relationship between them (χ2(2)=215.09, p<0.001).  
+
+
+
+### *#Performing Logistic Regression*
+
+
+#Change Factor Label:
+
+
+```{r}
+dbpModel2<-project2%>%
+  mutate(overweight=(bmi_class>=3))%>%
+  mutate(underweight=(bmi_class<2))%>%
+  mutate(overweight=factor(overweight,labels=c("No","Yes")))%>%
+  mutate(underweight=factor(underweight,labels=c("No","Yes")))%>%
+  mutate(smoking_status=factor(smoking_status,labels=c("Doesn't Smoke","Smokes")))%>%
+  mutate(diabetes_class=factor(diabetes_class,labels=c("No Diabetes","Has Diabetes")))%>%
+  mutate(gender=factor(gender,labels=c("Male","Female")))%>%
+  mutate(hypertension_class=factor(hypertension_class,labels=c("No Hypertension","Has Hypertension")))
+head(dbpModel2)
+```
+
+#Diabetes & Overweight:
+
+```{r}
+fit2<-glm(diabetes_class~overweight, data = dbpModel2, family = "binomial")
+summary(fit2)
+```
+
+
+```{r}
+fit2$coefficients
+```
+
+Counting the probability of having Diabetes if a patient doesn't have overweight:
+
+```{r}
+1/(1+exp(-fit2$coefficients[1]))
+```
+Counting the probability of having Diabetes if a patient has overweight:
+
+```{r}
+1/(1+exp(-fit2$coefficients[1]-fit2$coefficients[2]*1))
+```
+Hence, the model tells that, the probability of a patient being diagnosed with Diabetes if the patient doesn't have overweight is 0.03, and the probability of a patient being diagnosed with hypertension if the patient has overweight is 0.1. Which means, to filter out the patients with hypertension only looking at the overweight status is not sufficient (10% of the time), and we need to find a better model involving more variables.
+
+#Adding more predictor variables:
+
+```{r}
+fit2<-glm(diabetes_class~overweight+underweight+smoking_status+gender+hypertension_class, data = dbpModel2, family = "binomial")
+summary(fit2)
+```
+
+Removing underweight from the model, since it has the highest p-value:
+
+```{r}
+fit2<-glm(diabetes_class~overweight+smoking_status+hypertension_class+gender, data = dbpModel2, family = "binomial")
+summary(fit2)
+```
+Removing gender from the model, since it has the highest p-value:
+
+```{r}
+fit2<-glm(diabetes_class~overweight+hypertension_class+smoking_status, data = dbpModel2, family = "binomial")
+summary(fit2)
+```
+Removing smoking status from the model, since it has the highest p-value:
+
+```{r}
+fit2<-glm(diabetes_class~overweight+hypertension_class, data = dbpModel2, family = "binomial")
+summary(fit2)
+```
+
+Here, all the variables that are left have coefficients that are significantly different from 0 at the α = 0.01 significance level.
+
+### **Conclusion:** 
+
+The resulting model:
+
+$logit(p)=e^{-3.714+0.935*overweight_{yes}+1.241*hypertension\_class_{Has Hypertension}$
+
+The odds ratios are: 
+
+```{r}
+exp(fit2$coefficients)
+```
+
+These odds ratios tell us that the patients are most likely to be diagnosed with Diabetes are those who have overweights, and have been diagnosed with Hypertension previously. 
+
+
+
+
